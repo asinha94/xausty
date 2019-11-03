@@ -51,21 +51,27 @@ main(int argc, char **argv)
         return -1;
     }
 
-    int client_sock_fd = accept(server_fd,
+    for ( ;; ) {
+        printf("Waiting for clients....\n");
+        int client_sock_fd = accept(server_fd,
                             (struct sockaddr *) &address,
                             (socklen_t *) &socklen);
-    if (client_sock_fd < 0) {
-        perror("Couldn't accept() client socket connection");
-        return -1;
+        if (client_sock_fd < 0) {
+            perror("Couldn't accept() client socket connection");
+            return -1;
+        }
+
+        // client connected
+        printf("Connected to client\n");
+        char buffer[BUF_LEN];
+        int valread = read(client_sock_fd, buffer, BUF_LEN-1);
+        buffer[valread] = '\0';
+        printf("Recv: %s\n", buffer);
+        char const * s = "Thanks for coming!\n";
+        send(client_sock_fd, s, 18, 0);
+        printf("Replied!\n");
     }
 
-    // client connected
-    printf("Connected to client\n");
-    char buffer[BUF_LEN];
-    int valread = read(client_sock_fd, buffer, BUF_LEN);
-    printf("Recv: %s\n", buffer);
-    char const * s = "Thanks for coming!\n";
-    send(client_sock_fd, s, 18, 0);
-    printf("Replied!\n");
+    
     return 0;
 }
