@@ -52,25 +52,80 @@ main(void)
         return -1;
     }
 
-    for ( ;; ) {
-        printf("Waiting for clients....\n");
-        int client_sock_fd = accept(server_fd,
-                            (struct sockaddr *) &address,
-                            (socklen_t *) &socklen);
-        if (client_sock_fd < 0) {
-            perror("Couldn't accept() client socket connection");
-            return -1;
-        }
+    // create epoll file descriptor
+    int epollfd = epoll_create1(0);
+    if (epollfd == -1) {
+        perror("Failed to create epoll fd");
+        return -1;
+    }
 
-        // client connected
-        printf("Connected to client\n");
-        char buffer[BUF_LEN];
-        ssize_t valread = read(client_sock_fd, buffer, BUF_LEN - 1L);
-        buffer[valread] = '\0';
-        printf("Recv: %s\n", buffer);
-        char const * s = "Thanks for coming!\n";
-        send(client_sock_fd, s, 18, 0);
-        printf("Replied!\n");
+    // register accept-socket for events
+    struct epoll_event ev;
+    ev.events = EPOLLIN;
+    ev.data.fd = server_fd;
+    int epollctl = epoll_ctl(epollfd, EPOLL_CTL_ADD, server_fd, &ev);
+    if (epollctl == -1) {
+        perror("Failed to register server socket to epoll fd");
+        return -1;
+    }
+
+
+    // Wait for events, max of 10 at a time
+    int max_events = 10;
+    struct epoll_event events[max_events];
+    for ( ;; ) {
+        printf("Waiting for epoll....\n");
+        int nfds = epoll_wait(epollfd, events, max_events, -1);
+
+        for (int i = 0; i < nfds; ++i) {
+            // new client connection
+            if (events[i].data.fd == server_fd) {
+                // new socket connection
+                printf("New client connection\n");
+                int client_sock_fd;
+                while ((client_sock_fd = accept4(server_fd,
+                                             (struct sockaddr *) &address,
+                                             (socklen_t *) &socklen,
+                                             SOCK_NONBLOCK)) != -1) {
+                    if (client_sock_fd < 0) {
+                        perror("Couldn't accept() client socket connection");
+                    }
+
+                    ev.events = EPOLLET | EPOLLIN;
+                    ev.data.fd = client_sock_fd;
+                    epollctl = epoll_ctl(epollfd, EPOLL_CTL_ADD, client_sock_fd, &ev);
+                    if (epollctl == -1) {
+                        perror("Error when attempting to register socket for events");
+                    }
+
+                }
+                continue;
+            }
+
+            // handler errors
+            if (events[i].events & (EPOLLERR | EPOLLRDHUP | EPOLLHUP)) {
+                printf("client socket shutdown\n");
+                close(events[i].data.fd);
+                continue;
+            }
+
+            // can read
+            if (events[i].events & EPOLLIN) {
+                // ready for reading....
+                char buffer[BUF_LEN];
+                ssize_t valread = read(events[i].data.fd, buffer, BUF_LEN - 1L);
+                buffer[valread] = '\0';
+                printf("Recv: %s\n", buffer);
+                char const * s = "Thanks for coming!\n";
+                // for now use the blocking call...hopefully this works
+                ssize_t sendsize = send(events[i].data.fd, s, 18, 0);
+                if (sendsize == -1) {
+                    perror("Failed to send data to client");
+                }
+            }
+
+        }
+        
     }
 
     
