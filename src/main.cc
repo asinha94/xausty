@@ -4,6 +4,8 @@
 #include <sys/epoll.h>
 #include <netinet/in.h>
 
+#include <Epoll.h>
+
 #define PORT 8080
 #define LISTENQ_SIZE 10
 const ssize_t BUF_LEN = 1024;
@@ -11,6 +13,9 @@ const ssize_t BUF_LEN = 1024;
 int
 main(void)
 {
+    // Create my epoll descriptor
+    auto epoll_event_loop = xausty::Epoll();
+
     int server_fd = socket(AF_INET,
                            SOCK_STREAM | SOCK_NONBLOCK,
                            0);
@@ -52,32 +57,15 @@ main(void)
         return -1;
     }
 
-    // create epoll file descriptor
-    int epollfd = epoll_create1(0);
-    if (epollfd == -1) {
-        perror("Failed to create epoll fd");
-        return -1;
-    }
-
     // register accept-socket for events
-    struct epoll_event ev;
-    ev.events = EPOLLIN;
-    ev.data.fd = server_fd;
-    int epollctl = epoll_ctl(epollfd, EPOLL_CTL_ADD, server_fd, &ev);
-    if (epollctl == -1) {
-        perror("Failed to register server socket to epoll fd");
-        return -1;
-    }
+    epoll_event_loop.start_listening_on_server(server_fd);
 
-
-    // Wait for events, max of 10 at a time
-    int max_events = 10;
-    struct epoll_event events[max_events];
+    // Wait for events
     for ( ;; ) {
-        printf("Waiting for epoll....\n");
-        int nfds = epoll_wait(epollfd, events, max_events, -1);
+        int rdy_fds = epoll_event_loop.wait();
+        auto events = epoll_event_loop.get_events();
 
-        for (int i = 0; i < nfds; ++i) {
+        for (int i = 0; i < rdy_fds; ++i) {
             // new client connection
             if (events[i].data.fd == server_fd) {
                 // new socket connection
@@ -91,26 +79,18 @@ main(void)
                         perror("Couldn't accept() client socket connection");
                     }
 
-                    ev.events = EPOLLET | EPOLLIN;
-                    ev.data.fd = client_sock_fd;
-                    epollctl = epoll_ctl(epollfd, EPOLL_CTL_ADD, client_sock_fd, &ev);
-                    if (epollctl == -1) {
-                        perror("Error when attempting to register socket for events");
-                    }
-
+                    epoll_event_loop.start_watching_client(client_sock_fd, true, false);
                 }
-                continue;
             }
 
             // handler errors
-            if (events[i].events & (EPOLLERR | EPOLLRDHUP | EPOLLHUP)) {
+            else if (events[i].events & (EPOLLERR | EPOLLRDHUP | EPOLLHUP)) {
                 printf("client socket shutdown\n");
                 close(events[i].data.fd);
-                continue;
             }
 
             // can read
-            if (events[i].events & EPOLLIN) {
+            else if (events[i].events & EPOLLIN) {
                 // ready for reading....
                 char buffer[BUF_LEN];
                 ssize_t valread = read(events[i].data.fd, buffer, BUF_LEN - 1L);
