@@ -2,15 +2,15 @@
 #define XSTY_EPOLL_H
 
 #include <cstdint>
-#include <string>
+#include <stdexcept>
+#include <sys/epoll.h>
 
-namespace xausty {
-
-    class EpollException {
+namespace xausty 
+{
+    class EpollException : public std::runtime_error
+    {
     public:
-        EpollException(std::string msg) : m_msg(msg) {}
-    private:
-        std::string m_msg;
+        EpollException(const char* what) : std::runtime_error(what) {}
     };
 
     class Epoll {
@@ -19,11 +19,11 @@ namespace xausty {
         using EpollEventPtr = struct epoll_event *;
         Epoll();
         ~Epoll();
-        bool start_listening_on_server(int fd);
-        bool start_watching_client(int fd, bool readble, bool writeable);
+        bool pollOnAccepts(int fd);
+        bool pollOnClients(int fd);
         //bool stop_watching(int fd);
         int wait();
-        EpollEventPtr get_events() {return m_events;}
+        EpollEventPtr getEvents() {return m_events;}
     private:
         int m_fd;
         const int32_t m_max_events;

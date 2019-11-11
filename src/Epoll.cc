@@ -1,14 +1,13 @@
-// C STD headers
+// std headers
 #include <cerrno>
 #include <cstdint>
 #include <cstring>
 #include <cstdlib>
-// C++ STD headers
 #include <string>
 #include <iostream>
-// Linux-specific headers
+// Linux headers
 #include <sys/epoll.h>
-// Custom headers
+// Project headers
 #include <Epoll.h>
 
 
@@ -25,7 +24,7 @@ namespace xausty {
         if (m_fd == -1) {
             std::string error = "Failed to create Epoll Descriptor";
             error += std::string(strerror(errno));
-            throw EpollException(error);
+            throw EpollException(error.c_str());
         }
 
         // allocate memory for epoll buffer
@@ -41,7 +40,7 @@ namespace xausty {
         free(m_events);
     }
 
-    bool Epoll::start_listening_on_server(int fd) {
+    bool Epoll::pollOnAccepts(int fd) {
         m_ev.events = EPOLLIN;
         m_ev.data.fd = fd;
         int epollctl = epoll_ctl(m_fd, EPOLL_CTL_ADD, fd, &m_ev);
@@ -53,13 +52,10 @@ namespace xausty {
         return true;
     }
 
-    bool Epoll::start_watching_client(int fd, bool can_read, bool can_write)
+    bool Epoll::pollOnClients(int fd)
     {
-        uint32_t flags = EPOLLET;
-        flags |= can_read ? EPOLLIN : (uint32_t) 0;
-        flags |= can_write ? EPOLLOUT : (uint32_t) 0;
-
-        m_ev.events = flags;
+        // Edge triggered notifications for RW
+        m_ev.events = EPOLLET | EPOLLIN | EPOLLOUT;
         m_ev.data.fd = fd;
         int epollctl = epoll_ctl(m_fd, EPOLL_CTL_ADD, fd, &m_ev);
         if (epollctl == -1) {
@@ -72,7 +68,7 @@ namespace xausty {
 
     int Epoll::wait()
     {
-        std::cout << "Waiting for epoll data\n";
+        std::cout << "wait()ing for epoll trigger\n";
         return epoll_wait(m_fd, m_events, m_max_events, -1);
     }
 }
