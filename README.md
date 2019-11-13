@@ -7,8 +7,16 @@ C++17 is used for classes, namespacing, copy ellision, operator new etc...
 
 ## Requirements
 
-- CMake > 3.8
-- C++17 Compiler (GCC)
-- Linux Kernel version > 4 should work
+- CMake > 3.8. You might need to build a newer release from sources here: https://cmake.org/download/
 
-To install cmake you may need to install a newer version from the official releases website at https://cmake.org/download/
+- C++17 Compiler. GCC preffered but Clang should work
+
+- Linux Kernel version > 4
+
+## TODO (Immediate):
+
+- Refactor main loop into epoll event loop to make it prettier and more manageable
+
+- Change epoll back to level triggered and disable write when necessary
+
+- Create HTTP abstraction/handlers
