@@ -20,12 +20,13 @@ int main(void)
     auto epoll_event_loop = xausty::Epoll();
 
     // create listening socket
-    auto server = xausty::AsyncSocket();
-    server.bindAndListen(8080, 10);
-    int server_fd = server.m_fd;
+    auto server = xausty::AsyncSocket(8080);
+    server.bindAndListen(10);
+    int server_fd = server.getfd();
 
     // register accept-socket for events
     epoll_event_loop.pollOnAccepts(server_fd);
+    std::cout << "Listening for incoming connections on " << server.getaddrinfo() << '\n';
 
     // Wait for events
     for ( ;; ) {
@@ -44,8 +45,9 @@ int main(void)
                         break;
                     }
                     auto conn_client = client.value();
-                    epoll_event_loop.pollOnClients(conn_client.m_fd);
-                    std::cout << "New Connected client!\n";
+                    epoll_event_loop.pollOnClients(conn_client.getfd());
+                    std::cout << "New client at " << conn_client.getaddrinfo() << '\n';
+
                 }
             }
 

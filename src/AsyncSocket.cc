@@ -14,9 +14,10 @@ namespace xausty {
     using SockAddr = AsyncSocket::SockAddr;
     using SockAddrPtr = AsyncSocket::SockAddrPtr;
 
-    AsyncSocket::AsyncSocket() :
-        m_server_side(true),
-        m_port(0)
+    AsyncSocket::AsyncSocket(uint16_t port) :
+        m_addr(0),
+        m_port(port),
+        m_server_side(true)
     {
         this->m_fd = socket(AF_INET,
                             SOCK_STREAM | SOCK_NONBLOCK,
@@ -42,13 +43,21 @@ namespace xausty {
         }
     }
 
-    bool AsyncSocket::bindAndListen(const uint16_t port, int listenq_len)
+    AsyncSocket::AsyncSocket(int client_fd, uint32_t addr, uint16_t port) :
+        m_fd(client_fd),
+        m_addr(addr),
+        m_port(port),
+        m_server_side(false)
+    {
+
+    }
+  
+    bool AsyncSocket::bindAndListen(int listenq_len)
     {
         if (!this->m_server_side) {
             return false;
         }
 
-        this->m_port = port;
         // IPV4 only for now
         SockAddr address;
         address.sin_family = AF_INET;
@@ -56,7 +65,7 @@ namespace xausty {
         address.sin_port = htons(this->m_port);
         int socklen = sizeof(address);
 
-        // bind to port
+        // bind socket to (interface, port)
         int bindval = bind(this->m_fd,
                            (struct sockaddr *) &address,
                            socklen);
@@ -77,10 +86,10 @@ namespace xausty {
     std::experimental::optional<AsyncSocket> AsyncSocket::accept()
     {
         // Accept connection if there is any
-        SockAddr address;
-        int socklen = sizeof(address);
+        SockAddr addr;
+        int socklen = sizeof(addr);
         int client_sock_fd = accept4(this->m_fd,
-                                     (struct sockaddr *) &address,
+                                     (struct sockaddr *) &addr,
                                      (socklen_t *) &socklen,
                                      SOCK_NONBLOCK);
 
@@ -89,7 +98,7 @@ namespace xausty {
             return std::experimental::nullopt;
         }
 
-        return AsyncSocket(client_sock_fd);
+        return AsyncSocket(client_sock_fd, addr.sin_addr.s_addr, addr.sin_port);
 
     }
 
@@ -101,6 +110,24 @@ namespace xausty {
     bool AsyncSocket::write(const std::string &data)
     {
         return data.length() == 1;
+    }
+
+    std::string AsyncSocket::getaddrinfo()
+    {
+        uint8_t o1 = (uint8_t) ((this->m_addr & 0xFF000000) >> 24);
+        uint8_t o2 = (uint8_t) ((this->m_addr & 0x00FF0000) >> 16);
+        uint8_t o3 = (uint8_t) ((this->m_addr & 0x0000FF00) >> 8);
+        uint8_t o4 = (uint8_t) ((this->m_addr & 0x000000FF) >> 0);
+
+        // network order is big-endian but x86-64 is little-endian
+        // so have to reverse the bytes
+        uint16_t port = (uint16_t) ((this->m_port << 8) | (this->m_port >> 8));
+        std::string addr = std::to_string(o4) + "." 
+                         + std::to_string(o3) + "."
+                         + std::to_string(o2) + "."
+                         + std::to_string(o1) + ":"
+                         + std::to_string(port);
+        return addr;
     }
 
 }

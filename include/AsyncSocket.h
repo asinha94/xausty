@@ -19,17 +19,23 @@ namespace xausty
     public:
         using SockAddr = struct sockaddr_in;
         using SockAddrPtr = struct sockaddr_in *;
-        int m_fd; // TODO: make private when refactored
-        AsyncSocket();
-        bool bindAndListen(const uint16_t port, int listenq_len);
+        
+        AsyncSocket(uint16_t port);
+        // syscall wrappers
+        bool bindAndListen(int listenq_len);
         std::experimental::optional<AsyncSocket> accept();
         std::string read();
         bool write(const std::string &data);
+        // other wrappers
+        std::string getaddrinfo();
+        int getfd() {return this->m_fd;}
         
     private:
-        bool m_server_side;
+        int m_fd;
+        uint32_t m_addr;
         uint16_t m_port;
-        AsyncSocket(int client_fd) : m_fd(client_fd), m_server_side(false) {}
+        bool m_server_side;
+        AsyncSocket(int client_fd, uint32_t addr, uint16_t port);
     };
 }
 

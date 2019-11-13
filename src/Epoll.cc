@@ -71,4 +71,5 @@ namespace xausty {
         std::cout << "wait()ing for epoll trigger\n";
         return epoll_wait(m_fd, m_events, m_max_events, -1);
     }
+
 }
