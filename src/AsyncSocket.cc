@@ -119,14 +119,11 @@ namespace xausty {
         uint8_t o3 = (uint8_t) ((this->m_addr & 0x0000FF00) >> 8);
         uint8_t o4 = (uint8_t) ((this->m_addr & 0x000000FF) >> 0);
 
-        // network order is big-endian but x86-64 is little-endian
-        // so have to reverse the bytes
-        uint16_t port = (uint16_t) ((this->m_port << 8) | (this->m_port >> 8));
         std::string addr = std::to_string(o4) + "." 
                          + std::to_string(o3) + "."
                          + std::to_string(o2) + "."
                          + std::to_string(o1) + ":"
-                         + std::to_string(port);
+                         + std::to_string(this->m_port);
         return addr;
     }
 
