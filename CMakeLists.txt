@@ -20,6 +20,6 @@ endif(ENABLE_UBSAN)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wextra -Wall -Werror -Wfloat-equal -Wundef -Wshadow -Wpointer-arith -Wcast-align ")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -Wcast-qual -Wswitch-enum -Wconversion -Wunreachable-code -Wformat=2 -g")
 
-include_directories(include)
+include_directories(src)
 file(GLOB_RECURSE xausty_srcs "src/*.cc")
 add_executable(xausty ${xausty_srcs})
